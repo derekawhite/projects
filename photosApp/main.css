@@ -1,0 +1,14 @@
+TD {    FONT-WEIGHT: normal; FONT-SIZE: 10px; TEXT-ALIGN:center; COLOR: darkblue; LINE-HEIGHT: 11px; FONT-STYLE: normal; FONT-FAMILY: Times New Roman
+}
+A {
+    COLOR: red; TEXT-DECORATION: none
+}
+a:link {
+    COLOR: blue; TEXT-DECORATION: underline
+}
+A:visited {
+    COLOR: purple; TEXT-DECORATION: underline
+}
+a:active {
+    COLOR: black; TEXT-DECORATION: underline
+}
