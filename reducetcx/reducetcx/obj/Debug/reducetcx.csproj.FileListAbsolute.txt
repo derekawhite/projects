@@ -1,7 +1,0 @@
-J:\derek.white\Projects\reducetcx\reducetcx\obj\Debug\reducetcx.csprojAssemblyReference.cache
-J:\derek.white\Projects\reducetcx\reducetcx\obj\Debug\reducetcx.csproj.CoreCompileInputs.cache
-J:\derek.white\Projects\reducetcx\reducetcx\bin\Debug\reducetcx.exe.config
-J:\derek.white\Projects\reducetcx\reducetcx\bin\Debug\reducetcx.exe
-J:\derek.white\Projects\reducetcx\reducetcx\bin\Debug\reducetcx.pdb
-J:\derek.white\Projects\reducetcx\reducetcx\obj\Debug\reducetcx.exe
-J:\derek.white\Projects\reducetcx\reducetcx\obj\Debug\reducetcx.pdb
