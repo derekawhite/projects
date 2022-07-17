@@ -447,15 +447,14 @@ def DateTaken(filename):
 
     return datetime.strptime(filedate, '%Y:%m:%d %H:%M:%S')
 
-
 def readfolder(folder):
     readdir = Dir(folder)
 
     for f in glob.glob(os.path.join(folder, "*.jpg")):
         readdir.files.append(File(f, DateTaken(f)))
-    readdir.ReadTitles()
+    if len(readdir.files) > 0:
+        readdir.ReadTitles()
     return readdir
-
 
 def sortfiles(folder):
     tmpname = os.path.join(folder, "xxx-")
@@ -479,6 +478,10 @@ def createhtmlfiles(folder, bDoThumbs):
 
     print(f"Processing {folder}")
     dir = readfolder(folder)
+    if len(dir.files) == 0:
+        print (f"No files found in {dir.path}")
+        return
+
     dir.sortfiles()
 
     dir.creatmainhtmlfile()
