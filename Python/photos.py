@@ -197,8 +197,8 @@ class Dir:
         for file in self.files:
             try:
                 im = pilimage.open(file.path)
+                im.thumbnail((180, 180))                
 
-                im.thumbnail((180, 180))
                 exif = im.getexif()
                 if exif is None:
                     print('Sorry, image has no exif data.')
@@ -207,19 +207,23 @@ class Dir:
                         if key in ExifTags.TAGS:
                             if ExifTags.TAGS[key] == "Orientation":
                                 if (val == 8):
-                                    im = im.rotate(90)
+                                    im = im.rotate(90, expand=True)
                                 elif (val == 3):
-                                    im = im.rotate(180)
+                                    im = im.rotate(180, expand=True)
                                 elif (val == 6):
-                                    im = im.rotate(270)
+                                    im = im.rotate(270, expand=True)
 
                 im.save(file.get_thumb_name())
             except:
                 continue
 
     def CopyFile(self, source, dest):
-        shutil.copy2(source, dest)        
-        print ("Copying", source, "to", dest)
+        if  os.path.exists(source):
+            shutil.copy2(source, dest)        
+            print ("Copying", source, "to", dest)
+        elif os.path.exists(dest):
+            shutil.copy2(dest, source)            
+            print ("Copying", dest, "to", source)
 
     def CopyTitlesToFromDrive(self, filename):
         googlefilename = None
@@ -252,8 +256,10 @@ class Dir:
     def ReadTitles(self):
         filename = os.path.join(self.path, "titles.txt")
         self.CopyTitlesToFromDrive(filename)
-        if not os.path.exists(filename):
+        if not os.path.exists(filename): 
             self.MakeTitles()
+            self.CopyTitlesToFromDrive(filename)
+
         with open(filename, 'r') as f:
             while True:
                 line = f.readline()

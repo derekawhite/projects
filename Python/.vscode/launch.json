@@ -8,7 +8,10 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             "cwd": "c:\\",
-            "args" : ["c:\\My Photographs\\Photos\\DVD9\\421", "-h"]        
+            "args": [
+                "D:\\Derek\\My Photographs\\photos\\DVD9\\424",
+                "-h"
+            ]
         }
     ]
 }
