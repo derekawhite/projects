@@ -8,10 +8,7 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             "cwd": "c:\\",
-            "args": [
-                "C:\\Users\\Derek\\Downloads\\WALLED.tcx",
-                "-h"
-            ]
+            "args" : ["c:\\My Photographs\\Photos\\DVD9\\421", "-h"]        
         }
     ]
 }

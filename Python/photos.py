@@ -197,8 +197,8 @@ class Dir:
         for file in self.files:
             try:
                 im = pilimage.open(file.path)
-                im.thumbnail((180, 180))                
 
+                im.thumbnail((180, 180))
                 exif = im.getexif()
                 if exif is None:
                     print('Sorry, image has no exif data.')
@@ -207,23 +207,19 @@ class Dir:
                         if key in ExifTags.TAGS:
                             if ExifTags.TAGS[key] == "Orientation":
                                 if (val == 8):
-                                    im = im.rotate(90, expand=True)
+                                    im = im.rotate(90)
                                 elif (val == 3):
-                                    im = im.rotate(180, expand=True)
+                                    im = im.rotate(180)
                                 elif (val == 6):
-                                    im = im.rotate(270, expand=True)
+                                    im = im.rotate(270)
 
                 im.save(file.get_thumb_name())
             except:
                 continue
 
     def CopyFile(self, source, dest):
-        if  os.path.exists(source):
-            shutil.copy2(source, dest)        
-            print ("Copying", source, "to", dest)
-        elif os.path.exists(dest):
-            shutil.copy2(dest, source)            
-            print ("Copying", dest, "to", source)
+        shutil.copy2(source, dest)        
+        print ("Copying", source, "to", dest)
 
     def CopyTitlesToFromDrive(self, filename):
         googlefilename = None
@@ -256,10 +252,8 @@ class Dir:
     def ReadTitles(self):
         filename = os.path.join(self.path, "titles.txt")
         self.CopyTitlesToFromDrive(filename)
-        if not os.path.exists(filename): 
+        if not os.path.exists(filename):
             self.MakeTitles()
-            self.CopyTitlesToFromDrive(filename)
-
         with open(filename, 'r') as f:
             while True:
                 line = f.readline()
@@ -447,14 +441,15 @@ def DateTaken(filename):
 
     return datetime.strptime(filedate, '%Y:%m:%d %H:%M:%S')
 
+
 def readfolder(folder):
     readdir = Dir(folder)
 
     for f in glob.glob(os.path.join(folder, "*.jpg")):
         readdir.files.append(File(f, DateTaken(f)))
-    if len(readdir.files) > 0:
-        readdir.ReadTitles()
+    readdir.ReadTitles()
     return readdir
+
 
 def sortfiles(folder):
     tmpname = os.path.join(folder, "xxx-")
@@ -478,10 +473,6 @@ def createhtmlfiles(folder, bDoThumbs):
 
     print(f"Processing {folder}")
     dir = readfolder(folder)
-    if len(dir.files) == 0:
-        print (f"No files found in {dir.path}")
-        return
-
     dir.sortfiles()
 
     dir.creatmainhtmlfile()
