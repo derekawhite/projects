@@ -416,6 +416,9 @@ class Dir:
 def get_date(File):
     return File.modified
 
+def get_name(File):
+    return File.basename
+
 def DateTaken(filename):
 
     filedate = None
@@ -432,12 +435,12 @@ def DateTaken(filename):
     if (filedate == None):
         filedate = datetime.fromtimestamp(
             os.path.getmtime(filename)).strftime('%Y:%m:%d %H:%M:%S')
-        if image != NULL:
-            image.set("datetime_original", filedate)
-            image.set("datetime_digitized", filedate)
-            # Write image with modified EXIF metadata to an image file
-            with open(filename, 'wb') as new_image_file:
-                new_image_file.write(image.get_file())
+#        if image != NULL:
+#            image.set("datetime_original", filedate)
+#            image.set("datetime_digitized", filedate)
+#            # Write image with modified EXIF metadata to an image file
+#            with open(filename, 'wb') as new_image_file:
+#                new_image_file.write(image.get_file())
 
     return datetime.strptime(filedate, '%Y:%m:%d %H:%M:%S')
 
@@ -447,11 +450,11 @@ def readfolder(folder):
 
     for f in glob.glob(os.path.join(folder, "*.jpg")):
         readdir.files.append(File(f, DateTaken(f)))
-    readdir.ReadTitles()
+   # readdir.ReadTitles()
     return readdir
 
 
-def sortfiles(folder):
+def sortfilesbyfiledate(folder):
     tmpname = os.path.join(folder, "xxx-")
     finalname = os.path.join(folder, os.path.basename(folder) + "-")
     print("Sorting files in folder", folder)
@@ -467,7 +470,27 @@ def sortfiles(folder):
                   f"{finalname}{index+1:03d}.jpg")
 
     print(f"Finished Sorting {len(dir.files)} files in {folder}")
+    exit(0)
 
+def sortfilesbyfilename(folder, rootname):
+    tmpname = os.path.join(folder, "xxx-")
+    if len(rootname) > 0:
+        finalname = os.path.join(folder, rootname)
+    else:    
+        finalname = os.path.join(folder, os.path.basename(folder) + "-")
+    print("Sorting files in folder", folder)
+
+    dir = readfolder(folder)
+    dir.files.sort(key=get_name, reverse=False)
+
+    for index, item in enumerate(dir.files):
+        os.rename(item.path, f"{tmpname}{index+1:03d}.jpg")
+
+    for index, item in enumerate(dir.files):
+        os.rename(f"{tmpname}{index+1:03d}.jpg",
+                  f"{finalname}{index+1:03d}.jpg")
+
+    print(f"Finished Sorting {len(dir.files)} files in {folder}")
 
 def createhtmlfiles(folder, bDoThumbs):
 
@@ -501,7 +524,13 @@ def main():
         tic = time.perf_counter()
         folder = sys.argv[1]
         if "-rs" in sys.argv:
-            sortfiles(os.path.abspath(sys.argv[1]))
+            sortfilesbyfiledate(os.path.abspath(sys.argv[1]))
+        elif "-rsn" in sys.argv:
+            print (sys.argv)
+            if len(sys.argv) > 3:
+                sortfilesbyfilename(os.path.abspath(sys.argv[1]), sys.argv[3])
+            else:
+                sortfilesbyfilename(os.path.abspath(sys.argv[1]), "")
         elif "-h" in sys.argv:
             createhtmlfiles(os.path.abspath(sys.argv[1]), True)
         elif "*" in sys.argv:
