@@ -45,7 +45,7 @@ elif todir == "gw" and len(sys.argv) >=3:
 
 print (topath)
 
-f = open("c:\\temp\\go.bat", 'w')
+f = open("c:\\devroot\\bin\\goto.bat", 'w')
 f.write (f"pushd \"{topath}\"\n")
 f.close()
 

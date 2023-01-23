@@ -453,6 +453,12 @@ def readfolder(folder):
    # readdir.ReadTitles()
     return readdir
 
+def readdir(folder):
+    readdir = Dir(folder)
+
+    for f in glob.glob(os.path.join(folder, "*.jpg")):
+        readdir.files.append(File(f, NULL))
+    return readdir
 
 def sortfilesbyfiledate(folder):
     tmpname = os.path.join(folder, "xxx-")
@@ -480,7 +486,7 @@ def sortfilesbyfilename(folder, rootname):
         finalname = os.path.join(folder, os.path.basename(folder) + "-")
     print("Sorting files in folder", folder)
 
-    dir = readfolder(folder)
+    dir = readdir(folder)
     dir.files.sort(key=get_name, reverse=False)
 
     for index, item in enumerate(dir.files):
@@ -491,6 +497,29 @@ def sortfilesbyfilename(folder, rootname):
                   f"{finalname}{index+1:03d}.jpg")
 
     print(f"Finished Sorting {len(dir.files)} files in {folder}")
+
+def splitfilesbyfilename(folder, nSplits):
+    print ( folder, nSplits)
+    newpathbase = "dir"
+    dir = readdir(folder)
+    print ( "Readdir")
+    dir.files.sort(key=get_name, reverse=False)
+    print ( "after Readdir")
+
+    for index in range(nSplits):
+        finalname = os.path.join(folder, f"{newpathbase}-{index+1}")
+        print (finalname)
+        os.makedirs(finalname, exist_ok=True)
+
+    for index, item in enumerate(dir.files):
+        oldname = os.path.join(folder, f"{item.get_file_name()}.jpg")
+        newbase = f"{newpathbase}-{(index % nSplits)+1}"
+        newname = f"{newpathbase}-{(index % nSplits)+1}"
+        newpath = os.path.join(folder, newbase, f"{item.get_file_name()}.jpg")
+
+        if not os.path.exists (newpath):
+            shutil.copy2(oldname, newpath)
+            print ( f"Copying {oldname} to {newpath}")
 
 def createhtmlfiles(folder, bDoThumbs):
 
@@ -526,11 +555,23 @@ def main():
         if "-rs" in sys.argv:
             sortfilesbyfiledate(os.path.abspath(sys.argv[1]))
         elif "-rsn" in sys.argv:
-            print (sys.argv)
-            if len(sys.argv) > 3:
+            if len(sys.argv) == 4:
                 sortfilesbyfilename(os.path.abspath(sys.argv[1]), sys.argv[3])
-            else:
+            elif len(sys.argv) == 3:
                 sortfilesbyfilename(os.path.abspath(sys.argv[1]), "")
+            elif len(sys.argv) > 4:
+                stDir = os.path.abspath(sys.argv[1])
+                print (stDir)
+                sortfilesbyfilename(stDir, "")
+                for  i in range(3, len(sys.argv)):
+                    stNewDir = os.path.join(os.path.dirname(stDir), sys.argv[i])
+                    sortfilesbyfilename(stNewDir, "")
+        elif sys.argv[2] == "-rss" :
+            if len(sys.argv) >= 4 and sys.argv[3].isnumeric():
+                splitfilesbyfilename(os.path.abspath(sys.argv[1]), (int)(sys.argv[3]))
+            else:
+                print ("Enter number of splits")
+
         elif "-h" in sys.argv:
             createhtmlfiles(os.path.abspath(sys.argv[1]), True)
         elif "*" in sys.argv:
