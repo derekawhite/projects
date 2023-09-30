@@ -42,6 +42,8 @@ elif todir == "bin":
     topath = "c:\\Program Files\\CR2\\BankWorld\\bin"
 elif todir == "gw" and len(sys.argv) >=3:
     topath = os.path.join(basepath, "BankWorldATM", "Gateway", "Gateways", f"*{sys.argv[2]}*")
+elif todir == "py":
+    topath = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 print (topath)
 

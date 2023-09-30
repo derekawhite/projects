@@ -4,6 +4,10 @@
 # python -m pip install --trusted-host pypi.python.org --trusted-host pypi.org --trusted-host files.pythonhosted.org xlrd
 # python -m pip install --trusted-host pypi.python.org --trusted-host pypi.org --trusted-host files.pythonhosted.org openpyxl
 
+# python "C:\Users\Derek\Dropbox\Projects\Python\charts.py" r c:\Users\Derek\Dropbox\Charts\1952-2022\top100s_all-1952-2022.xlsx cmd Artists
+# python "C:\Users\derek.white\Dropbox (Personal)\Projects\Python\charts.py" r "C:\Users\derek.white\Dropbox (Personal)\Charts\1952-2022\top100s_all-1952-2022.xlsx" cmd Artists
+
+
 from html.parser import HTMLParser
 from html.entities import name2codepoint
 import urllib.request
@@ -16,12 +20,25 @@ from xlsxwriter.workbook import Workbook
 import openpyxl
 
 def remove_non_ascii(string):
-    return ''.join(char for char in string if ord(char) < 128)
+    try:
+        return ''.join(char for char in string if ord(char) < 128)
+    except:
+        return string
+
+def remove_non_alphanumeric(string):
+    try:
+        ret = ''.join(char for char in string if (char >='A' and char <='Z') or (char >='a' and char <='z') or (char >='0' and char <='9'))
+        if (len(ret)  < 1):
+            ret = string
+    except:
+        ret = string
+    return ret
 
 class song:
     def __init__(self, title, artist, position, peak, weeks, chartdate, enddate):
         self.title = remove_non_ascii(title)
         self.artist = remove_non_ascii(artist)
+        self.titlesq = remove_non_alphanumeric(title)
         self.position = position
         self.peak = peak        
         self.weeks = weeks
@@ -31,7 +48,7 @@ class song:
 
 class artist:
     def __init__(self, song):
-        self.artist = remove_non_ascii(song.artist)       
+        self.artist = song.artist       
         self.weeks1 = 1 if song.position == 1 else 0
         self.weeks10 = 1 if song.position <= 10 else 0
         self.weeks40 = 1 if song.position <= 40 else 0
@@ -41,6 +58,13 @@ class artist:
         self.enddate = song.enddate
         if self.enddate == None: self.enddate = self.startdate
 
+        self.num1 = 1 if song.position == 1 else 0
+        self.num10 = 1 if song.position <= 10 else 0
+        self.num40 = 1 if song.position <= 40 else 0
+        self.num100 = 1 if song.position <= 100 else 0
+
+        self.lastSong = song
+
     def inc(self, song):
         if song.position == 1: self.weeks1 += 1
         if song.position <= 10: self.weeks10 += 1
@@ -49,6 +73,14 @@ class artist:
         if song.position < self.peak: self.peak = song.position
         if song.startdate < self.startdate: self.startdate = song.startdate
         if song.enddate > self.enddate: self.enddate = song.enddate
+
+        if self.lastSong != None and song.titlesq != self.lastSong.titlesq:
+            if song.position == 1: self.num1 += 1
+            if song.position <= 10: self.num10 += 1
+            if song.position <= 40: self.num40 += 1
+            if song.position <= 100: self.num100 += 1
+
+        self.lastSong = song
 
     def equals(self, other):
         artist1 = self.artist
@@ -111,7 +143,7 @@ class MyHTMLParser(HTMLParser):
 
     def findsong(self, songtofind):
         for index, s in enumerate(self.songs):
-            if s.title == songtofind.title and s.artist == songtofind.artist:
+            if s.titlesq == songtofind.titlesq and s.artist == songtofind.artist:
                 return s
         return None
 
@@ -132,29 +164,15 @@ class MyHTMLParser(HTMLParser):
             else:
                 self.songs.append(newsong) 
 
-def comparesongs(item1, item2):
-    artist1 = item1.artist
-    artist2 = item2.artist
-
-    if artist1[0:4] == "THE ": artist1 = artist1[4:]
-    if artist2[0:4] == "THE ": artist2 = artist2[4:]
-
-    if artist1 == artist2:
-        if item1.title == item2.title:
-            return 1 if item1.position > item2.position else -1
-        else:
-            return 1 if item1.title > item2.title else -1
-    else:
-        return 1 if artist1 > artist2 else -1    
-
 def writeartists(artists):
     strs = fileToRead.split('\\')
     env = os.getenv("USERPROFILE")
     dirroot = f"{env}\\Dropbox (Personal)"
     if not os.path.isdir(dirroot):
         dirroot = f"{env}\\Dropbox"
-        dirname = f"{dirroot}\\Charts\\{cmd}"
-        filename = f"{dirname}\\{cmd}-{strs[len(strs) - 1]}"
+
+    dirname = f"{dirroot}\\Charts\\{cmd}"
+    filename = f"{dirname}\\{cmd}-{strs[len(strs) - 1]}"
 
     os.makedirs(dirname, exist_ok=True)
 
@@ -179,12 +197,16 @@ def writeartists(artists):
     worksheet.write (0, col:=col+1, "WEEKS-10", format2);
     worksheet.write (0, col:=col+1, "WEEKS-40", format2);
     worksheet.write (0, col:=col+1, "WEEKS-100", format2);
+    worksheet.write (0, col:=col+1, "NUM-1", format2);
+    worksheet.write (0, col:=col+1, "NUM-10", format2);
+    worksheet.write (0, col:=col+1, "NUM-40", format2);
+    worksheet.write (0, col:=col+1, "NUM-100", format2);
     worksheet.write (0, col:=col+1, "PEAK", format2);
     worksheet.write (0, col:=col+1, "START", format2);
     worksheet.write (0, col:=col+1, "END", format2);
     worksheet.set_column(0, 0, 50)
-    worksheet.set_column(1, 5, 12)
-    worksheet.set_column(6, 7, 12)
+    worksheet.set_column(1, 9, 12)
+    worksheet.set_column(10, 11, 20)
 
     for i, a in enumerate(artists):
         col = 0
@@ -193,6 +215,10 @@ def writeartists(artists):
         worksheet.write(i+1, col:=col+1, a.weeks10)
         worksheet.write(i+1, col:=col+1, a.weeks40)
         worksheet.write(i+1, col:=col+1, a.weeks100)
+        worksheet.write(i+1, col:=col+1, a.num1)
+        worksheet.write(i+1, col:=col+1, a.num10)
+        worksheet.write(i+1, col:=col+1, a.num40)
+        worksheet.write(i+1, col:=col+1, a.num100)
         worksheet.write(i+1, col:=col+1, a.peak)
         worksheet.write(i+1, col:=col+1, a.startdate, format1)
         worksheet.write(i+1, col:=col+1, a.enddate, format1)
@@ -203,7 +229,7 @@ def writeartists(artists):
 
 
 def writefile():
-    parser.songs.sort(key=functools.cmp_to_key(comparesongs))
+    parser.songs.sort(key=functools.cmp_to_key(sortbysong))
     env = os.getenv("USERPROFILE")
     dirroot = f"{env}\\Dropbox (Personal)"
     if not os.path.isdir(dirroot):
@@ -289,14 +315,23 @@ def sortbyweeks(item1, item2):
 
     return 1 if item1.weeks100 < item2.weeks100 else -1 
 
-def sortbyartist(item1, item2):
-    artist1 = item1.artist
-    artist2 = item2.artist
+def sortbysong(item1, item2):
+    try:
+        artist1 = item1.artist
+        artist2 = item2.artist
 
-    if artist1[0:4] == "THE ": artist1 = artist1[4:]
-    if artist2[0:4] == "THE ": artist2 = artist2[4:]
-       
-    return 1 if artist1 > artist2 else -1 
+        if artist1[0:4] == "THE ": artist1 = artist1[4:]
+        if artist2[0:4] == "THE ": artist2 = artist2[4:]
+
+        if artist1 == artist2:
+            if item1.titlesq == item2.titlesq:
+                return 1 if item1.position > item2.position else -1
+            else:
+                return 1 if item1.titlesq > item2.titlesq else -1
+        else:
+            return 1 if artist1 > artist2 else -1  
+    except:
+        return 0  
 
 def findArtist(artists, artisttofind):
     for index, a in enumerate(artists):
@@ -308,8 +343,9 @@ def processArtists(songs):
     artists = [] 
     lastArtist = None
     print ("Sorting")
-    songs.sort(key=functools.cmp_to_key(sortbyartist))
+    songs.sort(key=functools.cmp_to_key(sortbysong))
     print ("Sorted")
+ 
 
     for index, s in enumerate(songs):
         newArtist = artist(s)
@@ -388,9 +424,9 @@ def readfile():
                 if col == weeksPos:
                     weeks = value
                 if col == titlePos:
-                    title = value                   
+                    title = str(value)
                 if col == artistPos:
-                    artist = value            
+                    artist = str(value)            
     
         if row % 1000 == 0:
             print ("Row", row, "of", max_row)
@@ -455,6 +491,7 @@ if len(sys.argv) > 1:
                     else:
                         url = f"https://www.officialcharts.com/charts/singles-chart/{dtnow.strftime('%Y%m%d')}/750140/"
 
+                print (url)
                 fp = urllib.request.urlopen(url)
                 mystr = fp.read().decode("utf8")
                 parser.chartdate = dtnow

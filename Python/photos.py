@@ -1,3 +1,10 @@
+#python -m pip install --trusted-host pypi.python.org --trusted-host pypi.org --trusted-host files.pythonhosted.org exif
+#python -m pip install --trusted-host pypi.python.org --trusted-host pypi.org --trusted-host files.pythonhosted.org PIL
+#python -m pip install --trusted-host pypi.python.org --trusted-host pypi.org --trusted-host files.pythonhosted.org GPSPhoto
+#python -m pip install --trusted-host pypi.python.org --trusted-host pypi.org --trusted-host files.pythonhosted.org exifread
+#python -m pip install --trusted-host pypi.python.org --trusted-host pypi.org --trusted-host files.pythonhosted.org piexif
+
+from GPSPhoto import gpsphoto
 from asyncio.windows_events import NULL
 from datetime import datetime, timedelta, time
 from logging import logMultiprocessing
@@ -15,15 +22,28 @@ from string import digits
 import time
 import functools
 import shutil
+import filedate
 
-from numpy import true_divide
+
+subindex = '\
+<html>\n\
+<head>\n\
+</head>\n\
+<title>\n\
+My Photographs\n\
+</title>\n\
+<body>\n\
+<h3>My Photographs {year}</h3><p><a href="../index.htm">Complete Index</a><br>{next}<br>{prev}</p>\n\
+</body></html>\n\
+'
+
 
 filehtmltemplate = '\
 <html>\n\
 \n\
 <head>\n\
     <title>{title}</title>\n\
-    <LINK href="../../main.css" type=text/css rel=stylesheet>\n\
+    <LINK href="../../../{level}main.css" type=text/css rel=stylesheet>\n\
 </head>\n\
 \n\
 <body>\n\
@@ -32,12 +52,12 @@ filehtmltemplate = '\
         {prev}\n\
         {next}\n\
         <a href="../{name}.htm">This roll</a>\n\
-        <a href="{prevr}">Previous roll</a>\n\
-        <a href="{nextr}">Next roll</a>\n\
+        {prevr}\n\
+        {nextr}\n\
     </p>\n\
     <p>\n\
     <table border="10">\n\
-        <caption align="bottom">{filetitle}</Caption>\n\
+        <caption align="bottom">{location} {filetitle}</Caption>\n\
         <tr>\n\
             <td><a href="../{filename}.jpg"><img src="../{filename}.jpg" height="600"></a></td>\n\
         </tr>\n\
@@ -52,14 +72,15 @@ folderhtmltemplate = '\
 <html>\n\
 <head>\n\
     <title>{title}</title>\n\
-    <LINK href="../main.css" type=text/css rel=stylesheet>\n\
+    <LINK href="../../{level}main.css" type=text/css rel=stylesheet>\n\
 </head>\n\
 <body>\n\
     <p>\n\
-        <a href="{prevr}">Previous roll</a>\n\
-        <a href="{nextr}">Next roll</a>\n\
-        <a href="../index.htm">CD Index</a>\n\
-        <a href="../../index.htm">Full Index</a>\n\
+        {prevr}\n\
+        {nextr}\n\
+        {negat}\n\
+        {yearind}\n\
+        {fullind}\n\
         Click any image to see a larger version\n\
     </p>\n\
     <p>\n\
@@ -70,8 +91,7 @@ folderhtmltemplate = '\
 {table}\n\
     </table>\n\
     <p></p>\n\
-    <p>\n\
-    </p>\n\
+    <p>{makemodels}</p>\n\
 </body>\n\
 </html>\n\
 '
@@ -87,19 +107,19 @@ rowtemplate = '\
 
 coltemplatethumb = '\
             <td width="{percent}%">\n\
-                <a href="htm/{name}.htm"><img src="../thumbs/{dirname}/th_{name}.jpg" border="0" {showdate}></a>\n\
+                <a href="htm/{name}.htm"><img src="thumbs/{name}.jpg" border="0" {showdate}></a>\n\
             </td>\n\
 '
 
 coltemplatetitle = '\
             <td width="{percent}%">\n\
-                {filetitle}\n\
+               {location} {filetitle}\n\
             </td>\n\
 '
 
 
 def numstr(st):
-    return f"{(int)(st)}" if st.isnumeric() else st
+    return int(st) if st.isnumeric() else st
 
 def cmpstr(st1, st2, reverse):
     if st1 > st2:
@@ -111,19 +131,75 @@ def cmpstr(st1, st2, reverse):
 
     
 class File:
-    def __init__(self, path, modified):
+    def __init__(self, path, modified, created):
         self.path = path
         self.modified = modified
+        self.created = created
         self.title = ""
         self.basename = os.path.basename(os.path.dirname(path))
         self.basepath = os.path.dirname(path)
         self.basefilename=os.path.basename(path).split('.', 1)[0]
         parts = self.basefilename.split('-', 1)
         self.filesuffix = parts[1] if len(parts) > 1 else parts[0]
-
+        self.root = self.path.split(os.sep)[-3]
+        self.lat = NULL
+        self.long = NULL
+        
     def get_local_date(self):
-        return self.modified.strftime('%d/%m/%Y')
+        try:
+            return self.modified.strftime('%d/%m/%Y')
+        except:
+            print (f"bad date {self.path}" )
+            return datetime.today
+        
+    def get_local_date_time(self):
+        try:
+            return self.modified.strftime("%d/%m/%Y %H:%M:%S")
+        except:
+            print (f"bad date {self.path}" )
+            return datetime.today
+        
+    def get_make_model(self):
+        make = ""
+        model = ""
+        try:
+            im = pilimage.open(self.path)
+            exif = im.getexif()
+            if exif is not None:
+                for key, val in exif.items():                      
+                    if key in ExifTags.TAGS:
+                        if ExifTags.TAGS[key] == "Make":
+                            make = val
+                        if ExifTags.TAGS[key] == "Model":
+                            model = val
+            if make != "" and model != "":
+                return f"{make} {model}"
+            elif make != "":
+                return make
+            else:
+                return model
+        except:
+            return ""  
+       
+    def get_url(self, bSub):
 
+        url = ""
+
+        if self.lat == NULL:
+            try:
+                data = gpsphoto.getGPSData(self.path)
+                self.lat = data['Latitude']
+                self.long = data['Longitude']
+            except:
+                self.lat = 0
+                self.long = 0
+
+        dotdot = "../" if bSub else "" 
+        if self.lat != 0 or self.long != 0:
+            url = (f"<a href=\"https://www.google.com/maps/place/{self.lat},{self.long}\" target=\"_blank\"><img src=\"../../{dotdot}pin.jpg\" border=\"0\" title=Location></a>")
+        
+        return url
+ 
     def get_file_name(self):
         return os.path.splitext(os.path.basename(self.path))[0]
 
@@ -131,7 +207,7 @@ class File:
         return self.get_file_name().split("-")[0]
 
     def get_thumb_name(self):
-        x = os.path.abspath(os.path.join(self.basepath, "../thumbs", self.basename, f"th_{self.get_file_name()}.jpg"))
+        x = os.path.abspath(os.path.join(self.basepath, "thumbs", f"{self.get_file_name()}.jpg"))
         return x
 
     def get_title(self):
@@ -144,12 +220,17 @@ class Dir:
     def __init__(self, path):
         self.path = os.path.abspath(path)
         self.base = os.path.basename(self.path)
-        self.heading = self.prev = self.next = ""
+        self.heading = self.prev = self.next = self.longheading = ""
         self.files = []
         self.tablecolumns = 7
         self.tablewidth = 624
         self.reverse = False
-        self.showdate = False
+        self.showdate = True
+        self.root=self.path.split(os.sep)[-2]
+        self.dir = self.path.split(os.sep)[-1]
+        self.subFolders = []
+        self.titles = []
+        self.sortbytitle = False
 
     def comparefilenames(self, item1, item2):
         retval = 0
@@ -157,28 +238,18 @@ class Dir:
             return (int)(item1.filesuffix) - (int)(item2.filesuffix) if not self.reverse else (int)(item2.filesuffix) - (int)(item1.filesuffix)
         else:
             return cmpstr(item1.filesuffix, item2.filesuffix, self.reverse)
-            
-    def get_next(self, relative="../"):
-        if (self.next != ""):
-            return self.next
-        elif self.base.isnumeric():
-            return f"../{relative}{(int)(self.base)+1}/{(int)(self.base)+1}.htm"
-        else:
-            return f"{relative}{self.base}.htm"
-
-    def get_prev(self, relative="../"):
-        if (self.prev != ""):
-            return self.prev
-        elif self.base.isnumeric():
-            return f"../{relative}{(int)(self.base)-1}/{(int)(self.base)-1}.htm"
-        else:
-            return f"{relative}{self.base}.htm"
 
     def getdaterange(self):
+        if len(self.files) == 0:
+            return ""
+
         datefrom = dateto = self.files[0].modified
         for index, item in enumerate(self.files):
-            datefrom = min(datefrom, item.modified)
-            dateto = max(dateto, item.modified)
+            try:
+                datefrom = min(datefrom, item.modified)
+                dateto = max(dateto, item.modified)
+            except: 
+                print ( f"Bad date {item.path}")
 
         if self.showdate:
             return f"({datefrom.strftime('%d/%m/%Y')} to {dateto.strftime('%d/%m/%Y')}) "
@@ -186,8 +257,9 @@ class Dir:
             return ""
 
     def createthumbs(self):
-        thumbsfolder = os.path.abspath(
-            os.path.join(self.path, "../thumbs", self.base))
+
+        thumbsfolder = os.path.abspath(os.path.join(self.path, "thumbs")) 
+
         if os.path.isdir(thumbsfolder):
             for f in os.listdir(thumbsfolder):
                 os.remove(os.path.join(thumbsfolder, f))
@@ -203,7 +275,7 @@ class Dir:
                 if exif is None:
                     print('Sorry, image has no exif data.')
                 else:
-                    for key, val in exif.items():
+                    for key, val in exif.items():                      
                         if key in ExifTags.TAGS:
                             if ExifTags.TAGS[key] == "Orientation":
                                 if (val == 8):
@@ -212,7 +284,6 @@ class Dir:
                                     im = im.rotate(180)
                                 elif (val == 6):
                                     im = im.rotate(270)
-
                 im.save(file.get_thumb_name())
             except:
                 continue
@@ -236,9 +307,9 @@ class Dir:
         if not os.path.isdir(os.path.dirname(filename)):
             os.makedirs(os.path.dirname(filename), exist_ok=True)
         
-        if not os.path.exists(googlefilename):
+        if not os.path.exists(googlefilename) and os.path.exists(filename):
             self.CopyFile(filename, googlefilename)
-        if not os.path.exists(filename):
+        if not os.path.exists(filename)  and os.path.exists(googlefilename):
             self.CopyFile(googlefilename, filename)
 
         if os.path.exists(googlefilename) and os.path.exists(filename):
@@ -249,9 +320,9 @@ class Dir:
             else:
                 print ("Not copying", googlefilename )
 
-    def ReadTitles(self):
-        filename = os.path.join(self.path, "titles.txt")
-        self.CopyTitlesToFromDrive(filename)
+    def ReadTitles(self, level=0):
+        filename = os.path.join(self.path, "" if level == 0 else "../", "titles.txt")
+        #self.CopyTitlesToFromDrive(filename)
         if not os.path.exists(filename):
             self.MakeTitles()
         with open(filename, 'r') as f:
@@ -266,38 +337,61 @@ class Dir:
                     if strs[0][0] == "-":
                         for opt in opts:
                             if len(opt) > 1 and opt[0] == '-':
-                                if (opt[1] == 'p'):
-                                    self.prev = opt[2:]
-                                elif (opt[1] == 'n'):
-                                    self.next = opt[2:]
-                                elif (opt[1] == 'r'):
+                                if (opt[1] == 'r'):
                                     self.reverse = True
                                 elif (opt[1] == 'j'):
                                     self.showdate = True
+                                elif (opt[1] == 't'):
+                                    self.sortbytitle = True
                     elif strs[0] == "Title:" and len(strs) > 1:
-                        self.heading = strs[1]
+                        self.heading = self.longheading  = strs[1]
                     elif len(self.heading) == 0:
-                        self.heading = line.strip()
+                        self.heading = self.longheading = line.strip()
                     else:
                         item = self.search(strs[0])
-                        if item != NULL and len(strs) > 1:
-                            item.title = strs[1]
+                        if item != NULL:
+                            if len(strs) > 1:
+                                item.title = strs[1]
+                            self.titles.append(line.strip())
+
+                    if len(self.heading) > 0 and self.heading[-1] == '\\':
+                        self.longheading = self.heading[0:-1]
+                        self.heading = self.longheading
+                        line = f.readline().strip()
+                        while True:
+                            print (line)
+                            if line[-1] != '\\':
+                                self.longheading += f"<br>{line}"
+                                break;
+                            else:
+                                self.longheading += f"<br>{line[0:-1]}"
+                                line = f.readline().strip()
 
 
-
-
-    def creatmainhtmlfile(self):
+    def creatmainhtmlfile(self, level):
         mainhtmfile = os.path.join(self.path, f"{self.base}.htm")
 
         tablethumbcols = []
         tablenamecols = []
         tablerows = []
+        makes = {""}
 
+
+        if self.sortbytitle:
+            files = []       
+            for j, title in enumerate(self.titles):
+                for i, file in enumerate(self.files):
+                    if str(title) == str(file.get_title()):
+                        files.append(file)  
+            self.files = files    
+
+        print (f"creathhtmlfile {len(self.files)}")
         for index, item in enumerate(self.files):
 
-            tablethumbcols.append(coltemplatethumb.format(name=item.basefilename, dirname=self.base, showdate=f"title={item.get_local_date()}" if self.showdate else "", percent=100//self.tablecolumns))
+            makes.add(item.get_make_model())
+            tablethumbcols.append(coltemplatethumb.format(name=item.basefilename, dirname=self.base, showdate=f"title=\"{item.get_local_date_time()}\"" if self.showdate else "", percent=100//self.tablecolumns))
             tablenamecols.append(coltemplatetitle.format(
-                filetitle=item.get_title(), percent=100//self.tablecolumns))
+                location=item.get_url(False), filetitle=item.get_title(), percent=100//self.tablecolumns))
 
             if (index + 1) % self.tablecolumns == 0 or index == len(self.files) - 1:
                 tablerows.append(rowtemplate.format(tablerowthumbcols="".join(
@@ -305,9 +399,34 @@ class Dir:
                 tablenamecols.clear()
                 tablethumbcols.clear()
 
-        html = folderhtmltemplate.format(title=self.heading, prevr=self.get_prev("./"), nextr=self.get_next("./"),
-                                         daterange=self.getdaterange(), table="".join(tablerows))
+        makes.remove('')
+        
+        prevrollh = "" if prevroll == "" or level !=0 else f'<a href="{prevroll}">Previous roll</a>'
+        nextrollh = "" if nextroll == "" or level !=0 else f'<a href="{nextroll}">Next roll</a>'
 
+        print (f"prevroll {prevroll} nextroll {nextroll}")
+        if level != 0:
+           prevrollh = f'<a href="../{self.root}.htm">Back</a>'
+           nextrollh = ""
+
+        subpath = ""
+        for subfolder in self.subFolders:
+            if ( os.path.exists(os.path.join(self.path, subfolder))):
+                link = subfolder.split('\\')[-1]
+                print (f"!!{subfolder} {link}")
+                subpath += f'<a href="{link}/{link}.htm">{link}</a> '
+
+
+        yearindex = "Base Index"
+        if self.base.isnumeric():
+            yearindex = "Year Index"
+
+        html = folderhtmltemplate.format(title=self.longheading, prevr=prevrollh, nextr=nextrollh, negat=subpath,
+                                         daterange=self.getdaterange(), makemodels=(f'Cameras: {", ".join(makes)}' if len(makes) > 0 else ""), table="".join(tablerows),
+                                         level="" if level==0 else "../", 
+                                         yearind="" if level>0 else f'<a href="../index.htm">{yearindex}</a>',
+                                         fullind="" if level>0 else '<a href="../../index.htm">Full Index</a>')
+                                                                                   
         with open(mainhtmfile, 'w') as f:
             f.write(html)
             f.close()
@@ -330,11 +449,14 @@ class Dir:
         self.files.extend(nonnumericfilenames)
     
 
-    def createsubhtmlfiles(self):
+    def createsubhtmlfiles(self, level):
         htmfolder = os.path.join(self.path, "htm")
         if os.path.isdir(htmfolder):
             for f in os.listdir(htmfolder):
-                os.remove(os.path.join(htmfolder, f))
+                try:
+                    os.remove(os.path.join(htmfolder, f))
+                except:
+                    print (f"Failed to remove {os.path.join(htmfolder, f)}")           
         else:
             os.makedirs(htmfolder, exist_ok=True)
 
@@ -344,9 +466,12 @@ class Dir:
             htmfile = os.path.join(
                 htmfolder, f"{item.basefilename}.htm")
 
+            prevrollh = "" if prevroll == "" or level > 0 else f'<a href="../{prevroll}">Previous roll</a>'
+            nextrollh = "" if nextroll == "" or level > 0 else f'<a href="../{nextroll}">Next roll</a>'
             html = filehtmltemplate.format(title=self.heading, name=self.base, showdate=item.get_local_date() if self.showdate else "", prev=prev,
-                                           next=next, prevr=self.get_prev(), nextr=self.get_next(),
-                                           filetitle=item.get_title(), filename=item.basefilename)
+                                           next=next, prevr=prevrollh, nextr=nextrollh,
+                                           location=item.get_url(True), filetitle=item.get_title(), filename=item.basefilename
+                                           ,level="" if level==0 else "../")
 
             with open(htmfile, 'w') as f:
                 f.write(html)
@@ -354,8 +479,10 @@ class Dir:
 
     def MakeTitles(self):
         self.sortfiles()
-
-        with open(os.path.join(self.path, "titles.txt"), 'w') as f:
+        print (f"MakeTitles {self.path} {self.base}")
+        fn = os.path.join(self.path, "titles.txt")
+        print (f"Creating titles {fn}")
+        with open(fn, 'w') as f:
             f.write(f"Title: {self.base}\n")
             for index, item in enumerate(self.files):
                 f.write(f"{numstr(item.filesuffix)}\n")
@@ -376,6 +503,15 @@ class Dir:
         filename = os.path.abspath(os.path.join(
             self.path, "../" if bMain else "", "../index.htm"))
 
+        if not bMain:
+            if not (os.path.exists(filename)):
+                with open(filename, "w") as file:
+                    hnext = "" if nextyear == "" else f'<a href="../{nextyear}/index.htm">Next Year {nextyear}</a>'
+                    hprev = "" if prevyear == "" else f'<a href="../{prevyear}/index.htm">Previous Year {prevyear}</a>'
+                    html = subindex.format(year=self.root, next=hnext, prev=hprev)                    
+                    file.write(html)
+                    file.close()
+                 
         with open(filename, "r") as file:
             lines = file.readlines()
             for index, line in enumerate(lines):
@@ -390,6 +526,7 @@ class Dir:
                 rollnum = numberfromline(line)
                 if type(dirnum) == type(""):
                     rollnum = f"{rollnum}"
+                
 
                 if type(rollnum) == type(dirnum):
                     if rollnum == dirnum:
@@ -416,8 +553,22 @@ class Dir:
 def get_date(File):
     return File.modified
 
+def get_date_created(File):
+    return File.created
+
 def get_name(File):
     return File.basename
+
+def DateCreated(filename):
+    print(filename)
+
+    try:
+        filedate = datetime.fromtimestamp(os.path.getctime(filename)).strftime('%Y:%m:%d %H:%M:%S')
+    except:
+        filedate = datetime.fromtimestamp(os.path.getmtime(filename)).strftime('%Y:%m:%d %H:%M:%S')   
+            
+    return datetime.strptime(filedate, '%Y:%m:%d %H:%M:%S')
+
 
 def DateTaken(filename):
 
@@ -442,22 +593,28 @@ def DateTaken(filename):
 #            with open(filename, 'wb') as new_image_file:
 #                new_image_file.write(image.get_file())
 
-    return datetime.strptime(filedate, '%Y:%m:%d %H:%M:%S')
+    try:
+        retval = datetime.strptime(filedate, '%Y:%m:%d %H:%M:%S')
+        return retval
+    except:
+        print ( f"{filename} {filedate}" )
+        return datetime.today
 
 
-def readfolder(folder):
+def readfolder(folder, level = 0):
     readdir = Dir(folder)
 
     for f in glob.glob(os.path.join(folder, "*.jpg")):
-        readdir.files.append(File(f, DateTaken(f)))
-   # readdir.ReadTitles()
+        readdir.files.append(File(f, DateTaken(f), DateCreated(f)))
+    if level == 0 or "egatives" in folder:
+        readdir.ReadTitles(level)
     return readdir
 
 def readdir(folder):
     readdir = Dir(folder)
 
     for f in glob.glob(os.path.join(folder, "*.jpg")):
-        readdir.files.append(File(f, NULL))
+        readdir.files.append(File(f, NULL, NULL))
     return readdir
 
 def sortfilesbyfiledate(folder):
@@ -472,11 +629,29 @@ def sortfilesbyfiledate(folder):
         os.rename(item.path, f"{tmpname}{index+1:03d}.jpg")
 
     for index, item in enumerate(dir.files):
-        os.rename(f"{tmpname}{index+1:03d}.jpg",
-                  f"{finalname}{index+1:03d}.jpg")
+        os.rename(f"{tmpname}{index+1:03d}.jpg", f"{finalname}{index+1:03d}.jpg")
+        print ( f"{item.modified} {finalname}{index+1:03d}.jpg")
 
     print(f"Finished Sorting {len(dir.files)} files in {folder}")
-    exit(0)
+
+
+def sortfilesbydatecreated(folder):
+    tmpname = os.path.join(folder, "xxx-")
+    finalname = os.path.join(folder, os.path.basename(folder) + "-")
+    print("Sorting files in folder", folder)
+
+    dir = readfolder(folder)
+    dir.files.sort(key=get_date_created, reverse=False)
+
+    for index, item in enumerate(dir.files):
+        os.rename(item.path, f"{tmpname}{index+1:03d}.jpg")
+
+    for index, item in enumerate(dir.files):
+        os.rename(f"{tmpname}{index+1:03d}.jpg", f"{finalname}{index+1:03d}.jpg")
+        print ( f"{item.created} {finalname}{index+1:03d}.jpg")
+
+    print(f"Finished Sorting {len(dir.files)} files in {folder}")
+
 
 def sortfilesbyfilename(folder, rootname):
     tmpname = os.path.join(folder, "xxx-")
@@ -498,13 +673,21 @@ def sortfilesbyfilename(folder, rootname):
 
     print(f"Finished Sorting {len(dir.files)} files in {folder}")
 
+def copywithdate(src, dest):
+    print (f"Copy {src} to {dest} preserving dates")
+    shutil.copy (src,dest)
+    srcfile = filedate.File(src)
+    dstfile = filedate.File(dest)
+
+    dstfile.set (created=srcfile.get().get('created'))
+    dstfile.set (modified=srcfile.get().get('modified'))
+    dstfile.set (accessed=srcfile.get().get('accessed'))
+
 def splitfilesbyfilename(folder, nSplits):
     print ( folder, nSplits)
     newpathbase = "dir"
     dir = readdir(folder)
-    print ( "Readdir")
     dir.files.sort(key=get_name, reverse=False)
-    print ( "after Readdir")
 
     for index in range(nSplits):
         finalname = os.path.join(folder, f"{newpathbase}-{index+1}")
@@ -518,26 +701,33 @@ def splitfilesbyfilename(folder, nSplits):
         newpath = os.path.join(folder, newbase, f"{item.get_file_name()}.jpg")
 
         if not os.path.exists (newpath):
-            shutil.copy2(oldname, newpath)
+            copywithdate(oldname, newpath)
             print ( f"Copying {oldname} to {newpath}")
 
-def createhtmlfiles(folder, bDoThumbs):
+def createhtmlfiles(folder, bDoThumbs, level=0):
+
+    print ( folder)
+    subfolders = [ f.path for f in os.scandir(folder) if f.is_dir() and not f.name in ["htm", "thumbs"]]
 
     print(f"Processing {folder}")
-    dir = readfolder(folder)
+    dir = readfolder(folder, level)
     dir.sortfiles()
 
-    dir.creatmainhtmlfile()
-    dir.createsubhtmlfiles()
+    initialise(folder)
+
+    dir.subFolders = subfolders
+    dir.creatmainhtmlfile(level)
+    dir.createsubhtmlfiles(level)
     if bDoThumbs:
         dir.createthumbs()
 
-    dir.updateindex("<h4>Main Index</h4>",
-                "<h4>Parents Old Photos</h4>", True)
-    dir.updateindex("<body>", "</body>", False)
-
-    return dir
-
+    if level == 0:
+        dir.updateindex("<h4>Main Index</h4>", "<!--END-->", True)
+        dir.updateindex("<body>", "</body>", False)
+    
+    for subFolder in subfolders:
+        if os.path.exists (subFolder):
+            createhtmlfiles(subFolder, bDoThumbs, 1)
 
 def numberfromline(line):
     if '.htm" name = ' in line:
@@ -548,12 +738,95 @@ def numberfromline(line):
                 return numstr(line[loc + 8:loc2])
     return -1
 
+
+def sortbydirname(dir1, dir2):
+    s1 = dir1.split(maxsplit=1)
+    s2 = dir2.split(maxsplit=1)
+
+    n1 = ''.join(filter(str.isdigit, s1[0]))
+    n2 = ''.join(filter(str.isdigit, s2[0]))
+
+    if n1.isnumeric() and n2.isnumeric():
+        if int(n1) == int(n2) and len(s1) == 2 and len(s2) == 2:
+            return 1 if s1[1] > s2[1] else -1  
+        else:
+            return 1 if int(n1) > int(n2) else -1  
+    else:
+        return 1 if dir1 > dir2 else -1         
+
+def scanfolder (folder):
+    ret = []
+    for it in os.scandir(folder):
+        if it.is_dir() and it.name != "thumbs":
+            ret.append(it.name)
+    ret.sort(key=functools.cmp_to_key(sortbydirname))
+    return ret
+
+prevroll = ""
+nextroll = ""
+nextyear = ""
+prevyear = ""
+
+def initialise(folder):
+    global prevroll, nextroll, nextyear, prevyear
+    thisfolder = []
+    upfolder = []
+    prevfolder = []
+    nextfolder = []
+
+    root = folder.split(os.sep)[-2]
+    dir = folder.split(os.sep)[-1]
+
+    print (f"Scanning {folder}")
+    thisfolder = scanfolder(os.path.join(folder, ".."))
+    upfolder = scanfolder(os.path.join(folder, "..", ".."))
+    upind = upfolder.index(root)   
+    thisind = thisfolder.index(dir)
+
+    if upind > 0:
+        prevfolder = scanfolder(os.path.join(folder, "..", "..", upfolder[upind-1]))    
+
+    if upind < len(upfolder) - 1:
+        nextfolder = scanfolder(os.path.join(folder, "..", "..", upfolder[upind+1]))   
+    
+    if  thisind > 0:
+        prevroll = f"../{thisfolder[thisind-1]}/{thisfolder[thisind-1]}.htm"   
+    elif upind > 0 and len(prevfolder) > 0:
+        prevroll = f"../../{upfolder[upind-1]}/{prevfolder[len(prevfolder)-1]}/{prevfolder[len(prevfolder)-1]}.htm"    
+    else:         
+        prevroll = ""
+
+    if  thisind < len(thisfolder) - 1:
+        nextroll = f"../{thisfolder[thisind+1]}/{thisfolder[thisind+1]}.htm"   
+    elif upind < len(upfolder) - 1 and len(nextfolder) > 0:
+        nextroll = f"../../{upfolder[upind+1]}/{nextfolder[0]}/{nextfolder[0]}.htm"    
+    else:         
+        nextroll = ""
+
+    print (thisfolder)
+
+    if upind < len(upfolder) - 1:
+        nextyear = upfolder[upind+1]
+    if upind > 0:
+        prevyear = upfolder[upind-1]
+
+
 def main():
     if (len(sys.argv) > 1):
         tic = time.perf_counter()
-        folder = sys.argv[1]
+        folder = os.path.realpath(sys.argv[1])
+        if not "*" in sys.argv and not "**" in sys.argv:
+            if not os.path.exists(folder) or not os.path.isdir(folder):
+                print (f"folder {folder} does not exist")
+                exit(0)
+        bDoThumb = False
+        if "-h" in sys.argv:
+            bDoThumb = True
+
         if "-rs" in sys.argv:
             sortfilesbyfiledate(os.path.abspath(sys.argv[1]))
+        if "-rsc" in sys.argv:
+            sortfilesbydatecreated(os.path.abspath(sys.argv[1]))
         elif "-rsn" in sys.argv:
             if len(sys.argv) == 4:
                 sortfilesbyfilename(os.path.abspath(sys.argv[1]), sys.argv[3])
@@ -561,26 +834,41 @@ def main():
                 sortfilesbyfilename(os.path.abspath(sys.argv[1]), "")
             elif len(sys.argv) > 4:
                 stDir = os.path.abspath(sys.argv[1])
-                print (stDir)
                 sortfilesbyfilename(stDir, "")
                 for  i in range(3, len(sys.argv)):
                     stNewDir = os.path.join(os.path.dirname(stDir), sys.argv[i])
                     sortfilesbyfilename(stNewDir, "")
-        elif sys.argv[2] == "-rss" :
+        elif "-rss" in sys.argv:
             if len(sys.argv) >= 4 and sys.argv[3].isnumeric():
                 splitfilesbyfilename(os.path.abspath(sys.argv[1]), (int)(sys.argv[3]))
             else:
                 print ("Enter number of splits")
-
-        elif "-h" in sys.argv:
-            createhtmlfiles(os.path.abspath(sys.argv[1]), True)
+                exit()
         elif "*" in sys.argv:
             subfolders = [f.path for f in os.scandir(os.path.abspath(
                 sys.argv[1])) if f.is_dir() and f.name != "thumbs"]
             for folder in subfolders:
-                createhtmlfiles(folder, True)
+                createhtmlfiles(folder, bDoThumb)
+        elif "**" in sys.argv:
+            start = -1
+            if len(sys.argv) > 3 and sys.argv[3].isnumeric():
+                start = int(sys.argv[3])
+
+            subfolders = [f.path for f in os.scandir(os.path.abspath(
+                sys.argv[1])) if f.is_dir() and f.name != "thumbs"]
+            for folder in subfolders:
+                subfolders1 = [f.path for f in os.scandir(os.path.abspath(os.path.join(sys.argv[1], folder))) if f.is_dir() and f.name != "thumbs"]
+                for folder1 in subfolders1:
+                    dir = folder1.split(os.sep)[-1]
+                    print (dir)
+                    stnDir = ''.join(filter(str.isdigit, dir))
+                    if stnDir.isnumeric():
+                        nDir = int(stnDir)
+                        if nDir < start:
+                            continue
+                    createhtmlfiles(folder1, bDoThumb)
         else:
-            createhtmlfiles(folder, False)
+            createhtmlfiles(folder, bDoThumb)
         toc = time.perf_counter()
         print(f"Completed in {toc - tic:0.4f} seconds")
     else:

@@ -4,8 +4,8 @@ import os
 import sys
 
 
-nMaxPoints = 0
-nMinAngle = 0
+nMaxPoints = 300
+nMinAngle = 10
 nOffset = 0
 stXMLFile = None
 
