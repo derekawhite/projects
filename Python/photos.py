@@ -843,20 +843,21 @@ def getprevfolder(folder):
 
 
     if rollindex >= 1:
-        return f"{yearpath}{yearfolder[rollindex-1]}/{yearfolder[rollindex-1]}.htm"
+        res = f"{yearpath}{yearfolder[rollindex-1]}/{yearfolder[rollindex-1]}.htm"
     
-    if yearindex >= 1:
+    elif yearindex >= 1:
         prevyearfolder = scanfolder(prevyearpath)
-        return f"{prevyearpath}/{prevyearfolder[len(prevyearfolder)-1]}/{prevyearfolder[len(prevyearfolder)-1]}.htm"
+        res = f"{prevyearpath}/{prevyearfolder[len(prevyearfolder)-1]}/{prevyearfolder[len(prevyearfolder)-1]}.htm"
     
-    if decadeindex >= 1:
+    elif decadeindex >= 1:
         prevdecadepath = f"{rootpath}{rootfolder[decadeindex-1]}"
         prevdecadefolder = scanfolder(prevdecadepath)
         prevyearpath = f"{prevdecadepath}/{prevdecadefolder[len(prevdecadefolder)-1]}"
         prevyearfolder = scanfolder(prevyearpath)
-        return f"{prevyearpath}/{prevyearfolder[len(prevyearfolder)-1]}/{prevyearfolder[len(prevyearfolder)-1]}.htm"
+        res = f"{prevyearpath}/{prevyearfolder[len(prevyearfolder)-1]}/{prevyearfolder[len(prevyearfolder)-1]}.htm"
 
     prevyear = prevyearpath
+    print (f"prevyear!! {prevyear}")
 
     return res
 
@@ -881,24 +882,27 @@ def getnextfolder(folder):
     rollindex = yearfolder.index(rollname)
     yearindex = decadefolder.index(yearname)
     decadeindex = rootfolder.index(decadename)
-    print(yearindex, yearname)
+
+    if yearindex < len(decadefolder) - 1:
+        nextyearpath = f"{decadepath}{decadefolder[yearindex+1]}"
+    else:
+        nextdecadepath = f"{rootpath}{rootfolder[decadeindex+1]}"
+        nextdecadefolder = scanfolder(nextdecadepath)
+        nextyearpath = f"{nextdecadepath}/{nextdecadefolder[0]}"
 
     if rollindex < len(yearfolder) - 1:
         res =  f"{yearpath}{yearfolder[rollindex+1]}/{yearfolder[rollindex+1]}.htm"
     
     elif yearindex < len(decadefolder) - 1:
         nextyearfolder = scanfolder(nextyearpath)
-        nextyearpath = f"{decadepath}{decadefolder[yearindex+1]}"
         res = f"{nextyearpath}/{nextyearfolder[0]}/{nextyearfolder[0]}.htm"
     
     elif decadeindex < len(rootfolder)-1:
-        nextdecadepath = f"{rootpath}{rootfolder[decadeindex+1]}"
-        nextdecadefolder = scanfolder(nextdecadepath)
-        nextyearpath = f"{nextdecadepath}/{nextdecadefolder[0]}"
         nextyearfolder = scanfolder(nextyearpath)
         res = f"{nextyearpath}/{nextyearfolder[0]}/{nextyearfolder[0]}.htm"
 
     nextyear = nextyearpath
+    print (f"nextyear!! {nextyear}")
 
     return res
 
