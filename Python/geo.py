@@ -13,6 +13,7 @@ import pyperclip
 from datetime import datetime
 from exif import Image as exifimage
 import functools
+import shutil
 
 today = datetime.today()
 tcxtrackpoints = ""
@@ -193,9 +194,12 @@ def getClipboardText():
 def get_geodata(path):
     data = None
     try:
+        print (" Before")
         data = gpsphoto.getGPSData(path)
+        print (f" After {data} {path}")
         if len(data) == 0:
-            print(f"No Geo Data in {path}")      
+            if doFind == False:
+                print(f"No Geo Data in {path}")      
             return ""
                  
         lat = data['Latitude']
@@ -203,7 +207,9 @@ def get_geodata(path):
 
         return f"{lat},{long}"
     except Exception as e:
-        print(f"Invalid Geo Data in {path}")
+        shutil.copy(path, R"c:\temp\except")
+        if doFind == False:
+            print(f"Invalid Geo Data in {path}")
         return ""
 
 def DateTaken(filename):
@@ -215,6 +221,7 @@ def DateTaken(filename):
         if image.has_exif:
             filedate = image.get("datetime_original")
     except:
+        shutil.copy(filename, R"c:\temp\except")
         image = None
 
     file.close()
@@ -228,6 +235,7 @@ def DateTaken(filename):
         retval = datetime.strptime(filedate, '%Y:%m:%d %H:%M:%S')
         return retval
     except:
+        shutil.copy(filename, R"c:\temp\except")
         print ( f"{filename} {filedate}" )
         return datetime.today
     
@@ -252,6 +260,7 @@ def get_gpsdata(path):
         timestr = f"{gpsdatetime.year:04}-{gpsdatetime.month:02}-{gpsdatetime.day:02}T{gpsdatetime.hour:02}:{gpsdatetime.minute:02}:{gpsdatetime.second:02}"
         return lat,long,timestr   
     except Exception as e:
+        shutil.copy(path, R"c:\temp\except")
         print(f"Invalid Geo Data in {path}")
         return 0,0,""
     
@@ -262,6 +271,7 @@ def set_geodata(path, lat, long):
         info = gpsphoto.GPSInfo((lat, long))
         photo.modGPSData(info, path)
     except Exception as e:
+        shutil.copy(path, R"c:\temp\except")
         print (f"Set No Geo Data {path} {e}")
 
 def isfloat(element: any) -> bool:
@@ -285,6 +295,7 @@ excl = False
 doReverse = False
 pattern = ""
 reverses = {}
+doFind = False;
 
 titles = {}
 def ReadTitles(path):
@@ -347,7 +358,64 @@ def scan(path):
                 files.append(it.path)
         else:
             if doCheck:
-                scan (os.path.join(path,it.name))
+                scan (os.path.join(path,it.name)) 
+
+if "find" in sys.argv:
+    grain = 0.01
+    doFind = True
+    doCheck = True
+    scan (".")
+    for arg in sys.argv:
+        if isfloat(arg):
+            if lat == None:
+                lat = float(arg)
+            elif long == None:
+                lon = float(arg)
+
+
+    for filen in files:
+
+        try:                
+            filenl = filen.lower()
+
+            if "\\negatives\\" in filenl or "\\raw\\" in filenl or "\\thumbs\\" in filenl:
+                continue;
+            print (f"Doing {filen}")
+                
+            co = get_geodata(filen).split(',')
+            print (f"Done {filen}")
+            
+            if len(co) == 2:
+                pLat = float(co[0])            
+                pLon = float(co[1])
+
+                if (abs(lat - pLat) < grain and abs(lon - pLon) < grain):
+
+                    filenn =  os.path.join(os.path.dirname(filen), "Negatives", os.path.basename(filen))
+                    filene = os.path.join(R"D:\My Photographs\Scrapbook\Bray Head\Highlights", os.path.basename(filen))
+
+                    if os.path.exists (filenn):
+                        print (f"Neg File {filenn} Latitude {pLat}  Longitude {pLon}")
+                        shutil.copy(filenn, R"c:\temp\found")
+                        if (os.path.exists(filene)):
+                            print (f"Overwriting {filenn} {filene}")
+                            shutil.copy(filen, filene)
+                    else:
+                        print (f"File {filen} Latitude {pLat}  Longitude {pLon}")
+                        shutil.copy(filen, R"c:\temp\found")
+                        if (os.path.exists(filene)):
+                            print (f"Overwriting {filen} {filene}")
+                            shutil.copy(filen, filene)
+
+
+                       
+        except Exception as e:
+            print (f"Exception in {filen} {e}")
+            shutil.copy(filen, R"c:\temp\except")
+            continue
+                
+    exit(0)
+
 
 if  "check" in sys.argv or "c" in sys.argv:
     doCheck = True
@@ -369,6 +437,7 @@ else:
 
 if doGPS:
     files.sort(key=functools.cmp_to_key(comparefilenames))
+
 
 for arg in sys.argv:
     if arg == "h":  #Home
@@ -490,8 +559,12 @@ for filen in filens:
             else:
                 i = 'Y'
             if i == 'y' or i == 'Y' or i=='a' or i=='':
-                set_geodata(filen, lat, long)    
+                filenn =  os.path.join(os.path.dirname(filen), "Negatives", os.path.basename(filen))
+                set_geodata(filen, lat, long)  
                 print(f"After {filen} {get_geodata(filen)}")
+                if os.path.exists (filenn):
+                    set_geodata(filenn, lat, long)  
+                    print(f"After {filenn} {get_geodata(filenn)}")
                 if i=='a' or i=='A' or i == '':
                     doAll = True
             else:

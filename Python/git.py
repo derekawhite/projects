@@ -3,6 +3,37 @@ import os
 import sys
 import subprocess
 
+def chkout(id):
+    print (id)
+    if not id.isnumeric():
+        return False;
+
+    sub = subbranch
+    if sub == "":
+        sub = "main"
+    if subbranch == "" and basebranch != "":
+        sub = basebranch
+
+    for branch in branches:
+        if branch[0:2] == "* ":
+            branch = branch[2:]
+
+        if id in branch:
+
+            print(f"git checkout {sub}")
+            print(f"git pull")
+            os.system(f"git checkout {sub}")
+            os.system(f"git pull")
+
+            if branch != sub:
+                print(f"git checkout {branch}")
+                print (f"git merge {sub}")
+                os.system(f"git checkout {branch}")
+                os.system(f"git merge {sub}")
+                os.system(f"git branch")
+            return True;
+    return False
+
 os.system('cls')
 
 gitres = subprocess.run(['git', 'branch'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -22,6 +53,40 @@ subbranch = ""
 fname = "c:\\temp\\gitm.txt"
 cherry = ""
 doDel = False
+
+splitpath = os.getcwd().split('\\')    
+if splitpath[2] in ("550", "551", "552", "553", "554", "555"):
+    subbranch = splitpath[2]
+
+if subbranch == "550":
+    subbranch = "bw-550-b21"
+if subbranch == "551":
+    subbranch = "bw-551-b06"
+if subbranch == "552":
+    subbranch = "bw-552-b01"
+if subbranch == "553":
+    subbranch = "bw-553-b05"
+if subbranch == "554":
+    subbranch = "bw-554-b06"
+if subbranch == "555":
+    subbranch = "bw-555-b01"
+
+basepath = "bw-main"
+basebranch = "main"
+if len(splitpath) >= 4 and splitpath[1] == "devroot":
+    basepath = splitpath[3]
+    
+if basepath == "bw-main":
+    basebranch = "main"
+else:
+    basebranch = basepath
+
+print(f"subbranch = {subbranch}" )
+print(f"basebranch = {basebranch}" )
+
+if len(sys.argv) == 2:
+    if chkout(sys.argv[1]):
+        exit()
 
 if (len(sys.argv) > 1):
     for index, arg in enumerate(sys.argv):
@@ -73,42 +138,17 @@ else:
     desc = prn[pos+1:].strip()
     prn = prn[0:pos].strip()
 
-splitpath = os.getcwd().split('\\')    
 desc = desc.replace("_", " ")
-if splitpath[2] in ("554", "551", "552", "553"):
-    subbranch = splitpath[2]
-    print(f"subbranch = {subbranch}" )
-
-#if  (subbranch == ""):
-#    subbranch = input ("Enter Sub-branch or enter for none (551/552/554/553): ").strip()
 
 cleandesc = re.sub('[^0-9a-zA-Z]+', '_', desc)
 
-basepath = "bw-main"
-basebranch = "main"
-if len(splitpath) >= 4 and splitpath[1] == "devroot":
-    basepath = splitpath[3]
 if prn != "":
     branch = f"{prn}_{cleandesc}"
 else:
     branch = cleandesc
 
-if basepath == "bw-main":
-    basebranch = "main"
-else:
-    basebranch = basepath
-
 if (branch in branches):
     branchExists = True
-
-if subbranch == "551":
-    subbranch = "bw-551-b06"
-if subbranch == "552":
-    subbranch = "bw-552-b01"
-if subbranch == "554":
-    subbranch = "bw-554-integration"
-if subbranch == "553":
-    subbranch = "bw-553-b05"
 
 print(f"subbranch = {subbranch}" )
 
@@ -120,7 +160,7 @@ if doDel:
 
     print(f"git checkout {delBranch}")
     for branch in branches:
-        if len(branch) > 0 and branch != delBranch and branch != "main":
+        if len(branch) > 0 and branch.strip('* ') != delBranch and branch.strip('* ') != "main" and branch.strip('* ') != subbranch:
             print (f"git branch -D {branch.strip('* ')}")
     exit(0)
 

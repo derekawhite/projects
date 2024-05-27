@@ -5,6 +5,8 @@ import tkinter as tk
 from datetime import datetime
 from datetime import date, timedelta
 import os
+import pyperclip
+
 #import win32gui
 
 
@@ -14,8 +16,13 @@ def getClipboardText():
     root.withdraw()
     return root.clipboard_get()
 
+def setClipboardText(st):
+    pyperclip.copy(st)
+
 st = getClipboardText()
 lines = st.split('\n')
+cl = ''.join(st.split())
+setClipboardText(cl)
 
 now = datetime.now()
 dt =  now.strftime("%Y%m%d%H%M%S")

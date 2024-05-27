@@ -417,7 +417,10 @@ class Dir:
                 #print (f"!!{subfolder} {link}")
                 subpath += f'<a href="{link}/{link}.htm">{link}</a> '
 
-        yearindex = "Year Index"
+
+        yearindex = "Base Index"
+        if self.base.isnumeric():
+            yearindex = "Year Index"
 
         html = folderhtmltemplate.format(title=self.longheading, prevr=prevrollh, nextr=nextrollh, negat=subpath,
                                          daterange=self.getdaterange(), makemodels=(f'Cameras: {", ".join(makes)}' if len(makes) > 0 else ""), table="".join(tablerows),
@@ -492,9 +495,8 @@ class Dir:
         return NULL
 
     def updateindex(self, startline, endline, bMain):
+        indexline = f'<a href = "{os.path.basename(os.path.dirname(self.path)) + "/" if bMain else "" }{self.base}/{self.base}.htm" name = "{self.base}">{self.base}. {self.heading}.</a><font size="1" face="Comic Sans MS"> {self.getdaterange()}</font><br>\n'
 
-        x = os.path.basename(os.path.dirname(os.path.dirname(self.path))) +"/" + os.path.basename(os.path.dirname(self.path)) + "/"
-        indexline = f'<a href = "{x if bMain else "" }{self.base}/{self.base}.htm" name = "{self.base}">{self.base}. {self.heading}.</a><font size="1" face="Comic Sans MS"> {self.getdaterange()}</font><br>\n'
         start = end = False
         insertindex = replaceindex = -1
         lines = []
@@ -502,15 +504,13 @@ class Dir:
         filename = os.path.abspath(os.path.join(
             self.path, "../../" if bMain else "", "../index.htm"))
 
-        print (f"updateindex {filename}")
+        #print (f"updateindex {filename}")
 
         if not bMain:
             if not (os.path.exists(filename)):
                 with open(filename, "w") as file:
-                    print (f"nextyear {nextyear} prevyear {prevyear}" )
-
-                    hnext = "" if nextyear == "" else f'<a href="../{nextyear[6:]}/index.htm">Next Year {os.path.basename(nextyear)}</a>'
-                    hprev = "" if prevyear == "" else f'<a href="../{prevyear[6:]}/index.htm">Previous Year {os.path.basename(prevyear)}</a>'
+                    hnext = "" if nextyear == "" else f'<a href="../{nextyear}/index.htm">Next Year {nextyear}</a>'
+                    hprev = "" if prevyear == "" else f'<a href="../{prevyear}/index.htm">Previous Year {prevyear}</a>'
                     html = subindex.format(year=self.root, next=hnext, prev=hprev)                    
                     file.write(html)
                     file.close()
@@ -754,21 +754,15 @@ def splitfilesbyfilename(folder, nSplits):
             #print ( f"Copying {oldname} to {newpath}")
 
 def createhtmlfiles(folder, bDoThumbs, level=0):
-    os.chdir(folder)
-    global prevroll, nextroll
 
-    if level == 0:
-        prevroll = getprevfolder(folder)
-        nextroll = getnextfolder(folder)
-    else:
-        prevroll = ""
-        nextroll = ""
-    print (f"This: {folder}\nPrev: {prevroll}\nNext: {nextroll}")
-        
+    #print ( folder)
     subfolders = [ f.path for f in os.scandir(folder) if f.is_dir() and not f.name in ["htm", "thumbs"]]
 
+    #print(f"createhtmlfiles {folder} {level}")
     dir = readfolder(folder, level)
     dir.sortfiles()
+
+    initialise(folder)
 
     dir.subFolders = subfolders
     dir.creatmainhtmlfile(level)
@@ -817,16 +811,10 @@ def scanfolder (folder):
     ret.sort(key=functools.cmp_to_key(sortbydirname))
     return ret
 
-nextyear = ""
-prevyear = ""
-
 def getprevfolder(folder):
-    global nextyear, prevyear
     yearpath = "../" 
     decadepath = "../../" 
     rootpath = "../../../" 
-    prevyearpath = ""
-    res = ""
 
     rollname = os.path.basename(folder)
     yearname = os.path.basename(os.path.dirname(folder))
@@ -839,36 +827,28 @@ def getprevfolder(folder):
     rollindex = yearfolder.index(rollname)
     yearindex = decadefolder.index(yearname)
     decadeindex = rootfolder.index(decadename)
-    prevyearpath = f"{decadepath}{decadefolder[yearindex-1]}"
-
 
     if rollindex >= 1:
-        return f"{yearpath}{yearfolder[rollindex-1]}/{yearfolder[rollindex-1]}.htm"
+        return f"{yearpath}{yearfolder[rollindex-1]}"
     
     if yearindex >= 1:
+        prevyearpath = f"{decadepath}{decadefolder[yearindex-1]}"
         prevyearfolder = scanfolder(prevyearpath)
-        return f"{prevyearpath}/{prevyearfolder[len(prevyearfolder)-1]}/{prevyearfolder[len(prevyearfolder)-1]}.htm"
+        return f"{prevyearpath}/{prevyearfolder[len(prevyearfolder)-1]}"
     
     if decadeindex >= 1:
         prevdecadepath = f"{rootpath}{rootfolder[decadeindex-1]}"
         prevdecadefolder = scanfolder(prevdecadepath)
         prevyearpath = f"{prevdecadepath}/{prevdecadefolder[len(prevdecadefolder)-1]}"
         prevyearfolder = scanfolder(prevyearpath)
-        return f"{prevyearpath}/{prevyearfolder[len(prevyearfolder)-1]}/{prevyearfolder[len(prevyearfolder)-1]}.htm"
+        return f"{prevyearpath}/{prevyearfolder[len(prevyearfolder)-1]}"
 
-    prevyear = prevyearpath
-
-    return res
-
-
+    return ""
 
 def getnextfolder(folder):
-    global nextyear, prevyear
     yearpath = "../" 
     decadepath = "../../" 
     rootpath = "../../../" 
-    res = ""
-    nextyearpath = ""
 
     rollname = os.path.basename(folder)
     yearname = os.path.basename(os.path.dirname(folder))
@@ -881,29 +861,28 @@ def getnextfolder(folder):
     rollindex = yearfolder.index(rollname)
     yearindex = decadefolder.index(yearname)
     decadeindex = rootfolder.index(decadename)
-    print(yearindex, yearname)
 
     if rollindex < len(yearfolder) - 1:
-        res =  f"{yearpath}{yearfolder[rollindex+1]}/{yearfolder[rollindex+1]}.htm"
+        return f"{yearpath}{yearfolder[rollindex+1]}"
     
-    elif yearindex < len(decadefolder) - 1:
-        nextyearfolder = scanfolder(nextyearpath)
+    if yearindex < len(decadefolder) - 1:
         nextyearpath = f"{decadepath}{decadefolder[yearindex+1]}"
-        res = f"{nextyearpath}/{nextyearfolder[0]}/{nextyearfolder[0]}.htm"
+        nextyearfolder = scanfolder(nextyearpath)
+        return f"{nextyearpath}/{nextyearfolder[0]}"
     
-    elif decadeindex < len(rootfolder)-1:
+    if decadeindex < len(rootfolder)-1:
         nextdecadepath = f"{rootpath}{rootfolder[decadeindex+1]}"
         nextdecadefolder = scanfolder(nextdecadepath)
         nextyearpath = f"{nextdecadepath}/{nextdecadefolder[0]}"
         nextyearfolder = scanfolder(nextyearpath)
-        res = f"{nextyearpath}/{nextyearfolder[0]}/{nextyearfolder[0]}.htm"
+        return f"{nextyearpath}/{nextyearfolder[0]}"
 
-    nextyear = nextyearpath
-
-    return res
+    return ""
 
 prevroll = ""
 nextroll = ""
+nextyear = ""
+prevyear = ""
 
 def fixnegativedates(folder):
     ret = []
@@ -939,7 +918,68 @@ def decadepaths(folder):
         
     return f"{decade}{os.sep}{thisdecade-10}s", f"{decade}{os.sep}{thisdecade}s", f"{decade}{os.sep}{thisdecade+10}s"
 
+def initialise(folder):
+    global prevroll, nextroll, nextyear, prevyear
+    thisfolder = []
+    upfolder = []
+    prevfolder = []
+    nextfolder = []
+    prevdecade, thisdecade, nextdecade  = decadepaths(folder)
+    print(prevdecade, thisdecade, nextdecade)
+
+    root = folder.split(os.sep)[-2]
+    dir = folder.split(os.sep)[-1]
+
+    print (f"Scanning {folder}")
+    thisfolder = scanfolder(os.path.join(folder, ".."))
+    upfolder = scanfolder(os.path.join(folder, "..", ".."))
+    prevdecfolder = scanfolder(prevdecade)
+    nextdecfolder = scanfolder(nextdecade)
+
+    upind = upfolder.index(root)   
+    thisind = thisfolder.index(dir)
+
+    print (f"This {thisfolder}")
+    print (f"Up {upfolder}")
+    print (f"Prev Decade {prevdecfolder}")
+    print (f"Next Decade {nextdecfolder}")
+    if upind > 0:
+        f = os.path.join(folder, "..", "..", upfolder[upind-1])
+        print (f"upind {upind} {f}" )
+        prevfolder = scanfolder(f)  
+    else:
+        f = os.path.join(prevdecade, prevdecfolder[len(prevdecfolder)-1])
+        print (f"upind {upind} {f}" )
+        prevfolder = scanfolder(f)  
+
+    print (f"prevfolder {prevfolder}")
+    if upind < len(upfolder) - 1:
+        nextfolder = scanfolder(os.path.join(folder, "..", "..", upfolder[upind+1]))   
+    
+    if  thisind > 0:
+        prevroll = f"../{thisfolder[thisind-1]}/{thisfolder[thisind-1]}.htm"   
+    elif upind > 0 and len(prevfolder) > 0:
+        prevroll = f"../../{upfolder[upind-1]}/{prevfolder[len(prevfolder)-1]}/{prevfolder[len(prevfolder)-1]}.htm"    
+    else:         
+        prevroll = ""
+
+    if  thisind < len(thisfolder) - 1:
+        nextroll = f"../{thisfolder[thisind+1]}/{thisfolder[thisind+1]}.htm"   
+    elif upind < len(upfolder) - 1 and len(nextfolder) > 0:
+        nextroll = f"../../{upfolder[upind+1]}/{nextfolder[0]}/{nextfolder[0]}.htm"    
+    else:         
+        nextroll = ""
+
+    #print (thisfolder)
+
+    if upind < len(upfolder) - 1:
+        nextyear = upfolder[upind+1]
+    if upind > 0:
+        prevyear = upfolder[upind-1]
+
+
 def main():
+
     if (len(sys.argv) > 1):
         if "fixn" in sys.argv:
             fixnegativedates(".")
@@ -947,12 +987,16 @@ def main():
 
         tic = time.perf_counter()
         folder = os.path.realpath(sys.argv[1])
-    
+        prevfolder = getprevfolder(folder)
+        nextfolder = getnextfolder(folder)
+
+        print (f"Folder {folder}\nprev folder {prevfolder}\nnext folder {nextfolder}")
+        exit(0)
+        
         if not "*" in sys.argv and not "**" in sys.argv:
             if not os.path.exists(folder) or not os.path.isdir(folder):
                 print (f"folder {folder} does not exist")
                 exit(0)
-
         bDoThumb = False
         if "-h" in sys.argv:
             bDoThumb = True
