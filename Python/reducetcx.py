@@ -87,7 +87,7 @@ if nMaxPoints > 0:
     nDivisor = (int)(len(root.findall('.//Trackpoint')) / nMaxPoints)
     for nPoint in range(0, len(nodes) - 1, 1):
             nIndex = nPoint - nOffset
-            if nPoint % nDivisor != 0:
+            if nDivisor != 0 and nPoint % nDivisor != 0:
                 nodes[nIndex].getparent().remove(nodes[nIndex -1])      
                 nodes.remove(nodes[nIndex -1])
                 nOffset += 1 

@@ -29,6 +29,8 @@ elif len(splitpath) == 3 and splitpath[1] == "devroot":
 
 if todir == "tools":
     topath = os.path.join(basepath, "BankWorld", "BWTools")
+elif todir == "wa":
+    topath = os.path.join(basepath, "BankWorld", "Admin", "RestAPI")
 elif todir == "out":
     topath = os.path.join(basepath, "build", "bwout", "debug")
 elif todir == "outr":
@@ -37,6 +39,8 @@ elif todir == "build":
     topath = os.path.join(basepath, "buildfiles")
 elif todir == "base":
     topath = basepath
+elif todir == "inst":
+    topath = R"C:\devroot\mainline\bw-main\BankWorld\BWInstall\BankWorld_BinaryInstaller"
 elif todir == "logs":
     if 'CR2_DATA' in os.environ:
         topath = os.path.join(os.environ['CR2_DATA'], "logs")
@@ -50,7 +54,16 @@ elif todir == "logs":
             process = subprocess.Popen([r"C:\Program Files\TextPad 8\TextPad.exe", filename])  
             time.sleep(1)
         exit(0) 
-
+elif todir == "ilogs":
+    if 'CR2_DATA' in os.environ:
+        topath = os.path.join(os.environ['CR2_DATA'], "Install_Logs")
+    else:
+        topath = os.path.join("C:\\ProgramData\\CR2", "Install_Logs") 
+    for filename in glob (fR"{topath}\**\*.log", recursive=True):
+        print(f"\"{filename}\"")
+        process = subprocess.Popen([r"C:\Program Files\TextPad 8\TextPad.exe", filename])  
+        time.sleep(1)
+    exit(0) 
 elif todir == "bin":
     topath = "c:\\Program Files\\CR2\\BankWorld\\bin"
 elif todir == "db":

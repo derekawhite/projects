@@ -25,6 +25,7 @@ def chkout(id):
             os.system(f"git checkout {sub}")
             os.system(f"git pull")
 
+            print (f"{branch} {sub}" )
             if branch != sub:
                 print(f"git checkout {branch}")
                 print (f"git merge {sub}")
@@ -55,7 +56,7 @@ cherry = ""
 doDel = False
 
 splitpath = os.getcwd().split('\\')    
-if splitpath[2] in ("550", "551", "552", "553", "554", "555"):
+if splitpath[2] in ("550", "551", "552", "553", "554", "555", "556"):
     subbranch = splitpath[2]
 
 if subbranch == "550":
@@ -70,6 +71,8 @@ if subbranch == "554":
     subbranch = "bw-554-b06"
 if subbranch == "555":
     subbranch = "bw-555-b01"
+if subbranch == "556":
+    subbranch = "bw-556-b01"
 
 basepath = "bw-main"
 basebranch = "main"
@@ -118,7 +121,7 @@ if prn != "":
         prn = "BW-" + prn
 
 if not " " in prn and not "\t" in prn and not "_" in prn and not doDel : #Already contains description so don't ask for it
-    while desc == "":
+    while desc == "" or desc[-12:] == "edit summary":
         desc = input ("Enter Description: ").strip()
 else:
     pos1 = prn.find(" ")
@@ -147,7 +150,7 @@ if prn != "":
 else:
     branch = cleandesc
 
-if (branch in branches):
+if (branch in branches or "* " + branch in branches):
     branchExists = True
 
 print(f"subbranch = {subbranch}" )
@@ -160,7 +163,7 @@ if doDel:
 
     print(f"git checkout {delBranch}")
     for branch in branches:
-        if len(branch) > 0 and branch.strip('* ') != delBranch and branch.strip('* ') != "main" and branch.strip('* ') != subbranch:
+        if len(branch) > 0 and branch.strip('* ') != delBranch and branch.strip('* ') != "main" and branch.strip('* ') != subbranch and not "feature/" in branch:
             print (f"git branch -D {branch.strip('* ')}")
     exit(0)
 
@@ -181,6 +184,7 @@ if subbranch != "":
         else:
             print(f"git checkout {branch}")
         print("git pull")
+        print(f"git merge {subbranch}")
 
         if cherry != "":
             print("git fetch c:\\devroot\\mainline\\bw-main")

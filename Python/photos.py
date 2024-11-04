@@ -841,7 +841,6 @@ def getprevfolder(folder):
     decadeindex = rootfolder.index(decadename)
     prevyearpath = f"{decadepath}{decadefolder[yearindex-1]}"
 
-
     if rollindex >= 1:
         res = f"{yearpath}{yearfolder[rollindex-1]}/{yearfolder[rollindex-1]}.htm"
     

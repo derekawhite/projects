@@ -26,6 +26,11 @@ def sortbyendinglen(subs1, subs2):
 
     return 1 if subs1.str > subs2.str else -1  
 
+def sortbyrepeatedletter(subs1, subs2):
+    if subs1.count(repeatedletter) == subs2.count(repeatedletter):
+        return 1 if subs1 > subs2 else -1 
+    return 1 if subs1.count(repeatedletter) < subs2.count(repeatedletter) else -1  
+
 def DoEndings(words):
     endings = set ()
     substrs = set ()
@@ -127,6 +132,18 @@ def DoCommonEnding(words):
 
     print (f"Max run of ending {maxrunending} of length {endlen} = {maxrun} at index {maxrunindex}")
 
+def findpangrams(word):
+    global pangrams
+    x = word
+    y=list(set(x))
+    y.sort()
+    z = ''.join (y)
+
+    if len(z) == 7:   
+        if not z in pangrams:
+            pangrams[z] = [word]
+        else:
+            pangrams[z].append(word)
 
 def DoWordle():
     global exclude
@@ -194,8 +211,25 @@ def match (word, find):
 
     return True
 
+def do_pangrams(words):
+    for word in words:
+        findpangrams(word)
+    pgs = list(pangrams.values())
+    pgs.sort(key=len, reverse=True)
+    return pgs
+
+def do_blossom(words, letters, letter):
+    global blossoms
+    for word in words:
+        if ( set(word) <= set(letters) and letter in word):
+            blossoms.append(word)
+    blossoms.sort(key=len, reverse=True)
+
+
 all_words = load_words('words_alpha.txt')
 common_words = load_words('common_words.txt')
+pangrams={}
+blossoms=[]
 
 if len(sys.argv) > 1:
     for i in range (1, len(sys.argv)):
@@ -222,6 +256,26 @@ if len(sys.argv) > 1:
         elif sys.argv[i] == "-ao":
             DoAlphabetical(common_words)
             exit()
+        elif sys.argv[i] == "-pg":
+            if i < len(sys.argv)-1:
+                common_words.add (sys.argv[i+1])
+                all_words.add (sys.argv[i+1])
+            pgs = do_pangrams(all_words)
+            repeatedletter = ''
+            if len(sys.argv) == 4:
+                repeatedletter = sys.argv[3]
+            for pg in pgs:
+                if repeatedletter >= 'a' and repeatedletter <= 'z':
+                    pg.sort(key=functools.cmp_to_key(sortbyrepeatedletter))
+                else:
+                    pg.sort();
+                if i >= len(sys.argv)-1 or sys.argv[i+1] in pg:
+                    print(f"Len: {len(pg)} {pg}")
+            exit()            
+        elif sys.argv[i] == "-bl":
+            do_blossom(all_words, sys.argv[2], sys.argv[3])
+            print(blossoms) 
+            exit()            
         elif sys.argv[i] == "-e":
             DoEndings(common_words)
             exit()            
